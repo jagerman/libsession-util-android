@@ -28,8 +28,9 @@ steps:
       SSH_KEY:
         from_secret: SSH_KEY
     commands:
-      # The script still reads Drone's DRONE_WORKSPACE, which Woodpecker doesn't set.
-      - DRONE_WORKSPACE=$CI_WORKSPACE ./scripts/upload-maven-artifacts.py
+      # The script still reads Drone's DRONE_REPO and DRONE_WORKSPACE, which Woodpecker doesn't set
+      # (its Drone-compatible variables are only for plugins).
+      - DRONE_REPO=$CI_REPO DRONE_WORKSPACE=$CI_WORKSPACE ./scripts/upload-maven-artifacts.py
     # Woodpecker fails the whole pipeline if a step's secret is missing, but skips steps that don't
     # match before looking secrets up, so forks just don't upload.
     when:
