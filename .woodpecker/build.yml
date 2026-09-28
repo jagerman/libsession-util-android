@@ -1,0 +1,36 @@
+when:
+  - event: [push, tag]
+
+# Without these, the workflow could land on a macOS agent, which runs steps directly on the host.
+labels:
+  platform: linux/amd64
+  backend: docker
+
+clone:
+  - name: clone
+    image: woodpeckerci/plugin-git:2
+    settings:
+      # `git describe --tags` below needs the tags, and fetching them also turns off Woodpecker's
+      # default shallow partial clone.  Submodules are checked out too, with depth 1.
+      tags: true
+
+steps:
+  - name: publish
+    image: registry.session.codes/android:latest
+    environment:
+      ANDROID_HOME: /usr/lib/android-sdk
+    commands:
+      - env VERSION=`git describe --tags --dirty` ./gradlew publish
+
+  - name: upload the artifact
+    image: registry.session.codes/android:latest
+    environment:
+      SSH_KEY:
+        from_secret: SSH_KEY
+    commands:
+      # The script still reads Drone's DRONE_WORKSPACE, which Woodpecker doesn't set.
+      - DRONE_WORKSPACE=$CI_WORKSPACE ./scripts/upload-maven-artifacts.py
+    # Woodpecker fails the whole pipeline if a step's secret is missing, but skips steps that don't
+    # match before looking secrets up, so forks just don't upload.
+    when:
+      - repo: session-foundation/libsession-util-android
